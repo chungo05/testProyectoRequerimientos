@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BMS Visual - Simplificado</title>
+    <!-- FontAwesome para Iconos Visuales -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- CONFIGURACIÓN DE COLORES (Monocromático + Alto Contraste) --- */
+        :root {
+            --bg-body: #121212;
+            --bg-card: #1e1e1e;
+            --text-white: #ffffff;
+            --text-gray: #b0b0b0;
+            --border: #333333;
+            --accent: #ffffff; /* Blanco puro para resaltar */
+            --arrow-color: #ffffff; /* Flechas blancas visibles */
+            --highlight: #3a3a3a; /* Color de fondo al activar */
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; transition: all 0.3s ease; }
+        body { margin: 0; background-color: var(--bg-body); color: var(--text-white); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* HEADER */
+        header {
+            padding: 15px 30px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        h1 { font-size: 18px; margin: 0; font-weight: 600; letter-spacing: 0.5px; }
+        
+        .btn-play {
+            background: var(--text-white);
+            color: var(--bg-body);
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-play:hover { opacity: 0.9; transform: scale(1.05); }
+        .btn-play.active { background: #4CAF50; color: white; }
+
+        /* LAYOUT */
+        .main-layout { display: flex; height: 100%; }
+        
+        /* SIDEBAR */
+        .sidebar { width: 220px; background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .nav-item {
+            padding: 20px;
+            cursor: pointer;
+            color: var(--text-gray);
+            border-left: 4px solid transparent;
+            font-size: 14px;
+        }
+        .nav-item:hover { background: #252525; color: white; }
+        .nav-item.active { border-left-color: var(--accent); background: #252525; color: white; font-weight: bold; }
+
+        /* CANVAS (Zona de Dibujo) */
+        .canvas { flex: 1; padding: 40px; overflow-y: auto; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle, #1a1a1a 1px, transparent 1px) 0 0/20px 20px; }
+        
+        .scheme-container { display: none; width: 100%; max-width: 900px; animation: fadeIn 0.5s; }
+        .scheme-container.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- ESTILOS COMUNES DE BLOQUES --- */
+        .block {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            text-align: center;
+            position: relative;
+        }
+        .block:hover { border-color: var(--text-white); transform: translateY(-2px); }
+        .block.highlighted { 
+            background: var(--highlight); 
+            border-color: var(--text-white); 
+            box-shadow: 0 0 15px rgba(255,255,255,0.1); 
+            z-index: 10;
+        }
+        .block-icon { font-size: 24px; margin-bottom: 10px; color: var(--text-gray); }
+        .block.highlighted .block-icon { color: var(--text-white); }
+        .block-title { font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+        .block-sub { font-size: 11px; color: var(--text-gray); }
+
+        /* --- ESQUEMA 1: STACK (PILA) --- */
+        .stack-container { display: flex; flex-direction: column; gap: 10px; width: 400px; margin: 0 auto; }
+        .arrow-down { text-align: center; color: var(--arrow-color); font-size: 18px; margin: -5px 0; }
+        
+        /* --- ESQUEMA 2: TIMELINE VERTICAL --- */
+        .timeline-container { display: flex; flex-direction: column; gap: 0; width: 500px; margin: 0 auto; }
+        .step { display: flex; align-items: center; gap: 20px; padding: 15px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+        .step:hover { background: #1a1a1a; }
+        .step.highlighted { background: #252525; border: 1px solid #444; }
+        
+        .step-num { 
+            width: 40px; height: 40px; border-radius: 50%; background: #000; border: 2px solid var(--border); 
+            display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;
+        }
+        .step.highlighted .step-num { border-color: white; background: white; color: black; }
+        
+        .step-content { flex: 1; }
+        .step-line { width: 2px; height: 30px; background: var(--border); margin-left: 35px; } /* Línea conectora */
+
+        /* --- ESQUEMA 3: PING PONG (WATCHDOG) --- */
+        .wd-layout { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 20px 0; }
+        
+        .wd-device { width: 200px; height: 250px; display: flex; flex-direction: column; justify-content: center; align-items: center; border: 2px solid var(--border); border-radius: 12px; background: var(--bg-card); }
+        .wd-device.highlighted { border-color: white; }
+
+        .wd-center { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 30px; position: relative; }
+        
+        /* FLECHAS VISIBLES */
+        .interaction-arrow { 
+            display: flex; align-items: center; gap: 10px; color: var(--text-gray); opacity: 0.3; transition: all 0.3s;
+            width: 100%; justify-content: center;
+        }
+        .interaction-arrow.highlighted { opacity: 1; color: white; transform: scale(1.1); }
+        .arrow-line { height: 2px; width: 150px; background: white; position: relative; }
+        
+        /* Flecha derecha */
+        .arrow-right::after { content: '►'; position: absolute; right: -8px; top: -7px; font-size: 14px; }
+        /* Flecha izquierda */
+        .arrow-left::before { content: '◄'; position: absolute; left: -8px; top: -8px; font-size: 14px; }
+
+        /* PANEL INFO */
+        .info-panel { width: 300px; background: var(--bg-card); border-left: 1px solid var(--border); padding: 30px; }
+        .info-title { font-size: 20px; color: white; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .info-text { font-size: 14px; line-height: 1.6; color: var(--text-gray); }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>ESQUEMAS TÉCNICOS <span style="color: #666;">// ASIL D</span></h1>
+        <button class="btn-play" id="playBtn" onclick="togglePlay()">
+            <i class="fas fa-play"></i> VER FLUJO
+        </button>
+    </header>
+
+    <div class="main-layout">
+        <div class="sidebar">
+            <div class="nav-item active" onclick="setTab('tab1', this)">1. Capas SW</div>
+            <div class="nav-item" onclick="setTab('tab2', this)">2. Arranque</div>
+            <div class="nav-item" onclick="setTab('tab3', this)">3. Watchdog</div>
+        </div>
+
+        <div class="canvas">
+            
+            <!-- ESQUEMA 1: CAPAS SIMPLIFICADAS -->
+            <div id="tab1" class="scheme-container active">
+                <div class="stack-container">
+                    <!-- Nivel 1 -->
+                    <div class="block" data-key="app" onclick="showInfo('app')">
+                        <i class="fas fa-brain block-icon"></i>
+                        <div class="block-title">Capa de Aplicación</div>
+                        <div class="block-sub">Decisiones Inteligentes (SoC, SoH)</div>
+                    </div>
+                    
+                    <div class="arrow-down">↓</div>
+
+                    <!-- Nivel 2 -->
+                    <div class="block" data-key="service" onclick="showInfo('service')">
+                        <i class="fas fa-tools block-icon"></i>
+                        <div class="block-title">Capa de Servicios</div>
+                        <div class="block-sub">Gestión de Seguridad (Watchdog, OS)</div>
+                    </div>
+
+                    <div class="arrow-down">↓</div>
+
+                    <!-- Nivel 3 -->
+                    <div class="block" data-key="driver" onclick="showInfo('driver')">
+                        <i class="fas fa-cogs block-icon"></i>
+                        <div class="block-title">Drivers (MCAL)</div>
+                        <div class="block-sub">Traducción a Hardware (SPI, ADC)</div>
+                    </div>
+
+                    <div class="arrow-down">↓</div>
+
+                    <!-- Nivel 4 -->
+                    <div class="block" data-key="hw" onclick="showInfo('hw')" style="background: #000; border-style: dashed;">
+                        <i class="fas fa-microchip block-icon"></i>
+                        <div class="block-title">Hardware Físico</div>
+                        <div class="block-sub">Chips Reales (Renesas + NXP)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ESQUEMA 2: TIMELINE VERTICAL -->
+            <div id="tab2" class="scheme-container">
+                <div class="timeline-container">
+                    
+                    <!-- Paso 1 -->
+                    <div class="step" data-key="t0" onclick="showInfo('t0')">
+                        <div class="step-num">1</div>
+                        <div class="step-content">
+                            <div class="block-title">Conexión (BIST)</div>
+                            <div class="block-sub">Auto-test del chip de energía</div>
+                        </div>
+                    </div>
+                    <div class="step-line"></div>
+
+                    <!-- Paso 2 -->
+                    <div class="step" data-key="t1" onclick="showInfo('t1')">
+                        <div class="step-num">2</div>
+                        <div class="step-content">
+                            <div class="block-title">Energía Estable</div>
+                            <div class="block-sub">Reguladores 1.1V y 3.3V OK</div>
+                        </div>
+                    </div>
+                    <div class="step-line"></div>
+
+                    <!-- Paso 3 -->
+                    <div class="step" data-key="t2" onclick="showInfo('t2')">
+                        <div class="step-num">3</div>
+                        <div class="step-content">
+                            <div class="block-title">Despertar MCU</div>
+                            <div class="block-sub">El cerebro inicia a 400MHz</div>
+                        </div>
+                    </div>
+                    <div class="step-line"></div>
+
+                    <!-- Paso 4 -->
+                    <div class="step" data-key="t3" onclick="showInfo('t3')">
+                        <div class="step-num">4</div>
+                        <div class="step-content">
+                            <div class="block-title">Configuración (256ms)</div>
+                            <div class="block-sub">Sincronización crítica de seguridad</div>
+                        </div>
+                    </div>
+                    <div class="step-line"></div>
+
+                    <!-- Paso 5 -->
+                    <div class="step" data-key="t5" onclick="showInfo('t5')">
+                        <div class="step-num">5</div>
+                        <div class="step-content">
+                            <div class="block-title">Modo Run</div>
+                            <div class="block-sub">Operación cíclica normal</div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ESQUEMA 3: WATCHDOG PING PONG -->
+            <div id="tab3" class="scheme-container">
+                <div class="wd-layout">
+                    
+                    <!-- IZQUIERDA: PMIC -->
+                    <div class="wd-device" data-key="pmic" onclick="showInfo('pmic')">
+                        <i class="fas fa-shield-alt block-icon" style="font-size: 40px;"></i>
+                        <h3 style="margin: 10px 0;">PMIC (Juez)</h3>
+                        <div class="block-sub">NXP FS26</div>
+                    </div>
+
+                    <!-- CENTRO: INTERACCIÓN -->
+                    <div class="wd-center">
+                        <!-- Flecha 1 -->
+                        <div class="interaction-arrow" data-key="seed_arrow">
+                            <span>RETO (Seed)</span>
+                            <div class="arrow-line arrow-right"></div>
+                            <i class="fas fa-dice"></i>
+                        </div>
+
+                        <!-- Estado Central -->
+                        <div class="block" data-key="decision" style="border-radius: 50%; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; padding: 0;">
+                            <div>
+                                <i class="fas fa-balance-scale"></i><br>
+                                <span style="font-size: 10px;">¿VÁLIDO?</span>
+                            </div>
+                        </div>
+
+                        <!-- Flecha 2 -->
+                        <div class="interaction-arrow" data-key="key_arrow">
+                            <i class="fas fa-key"></i>
+                            <div class="arrow-line arrow-left"></div>
+                            <span>RESPUESTA</span>
+                        </div>
+                    </div>
+
+                    <!-- DERECHA: MCU -->
+                    <div class="wd-device" data-key="mcu" onclick="showInfo('mcu')">
+                        <i class="fas fa-microchip block-icon" style="font-size: 40px;"></i>
+                        <h3 style="margin: 10px 0;">MCU (Cerebro)</h3>
+                        <div class="block-sub">Renesas RH850</div>
+                    </div>
+
+                </div>
+                <div style="text-align: center; margin-top: 20px; color: #666; font-size: 12px;">
+                    Si la respuesta falla o tarda, el PMIC reinicia el sistema.
+                </div>
+            </div>
+
+        </div>
+
+        <div class="info-panel">
+            <div class="info-title" id="infoTitle">Bienvenido</div>
+            <div class="info-text" id="infoDesc">
+                Selecciona un esquema a la izquierda y pulsa "VER FLUJO" para ver una animación de cómo funciona el sistema, o haz clic en los elementos para ver detalles.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- BASE DE DATOS DE TEXTOS SIMPLIFICADOS ---
+        const infoDB = {
+            // Capas
+            app: { title: "Capa de Aplicación", text: "Es donde vive la 'inteligencia'. Aquí se decide si la batería está cargada (SoC), si está saludable (SoH) y cuándo activar los ventiladores." },
+            service: { title: "Capa de Servicios", text: "Son los asistentes del sistema. Gestionan las tareas repetitivas pero vitales, como responder al Watchdog para decir 'estoy vivo' y gestionar la memoria." },
+            driver: { title: "Drivers (MCAL)", text: "Son los traductores. La aplicación dice 'Leer Voltaje' y el Driver sabe exactamente qué registros mover en el chip para obtener ese número." },
+            hw: { title: "Hardware Físico", text: "Los componentes reales soldados en la placa: El microcontrolador Renesas y el chip de energía NXP conectados por pistas de cobre." },
+            
+            // Arranque
+            t0: { title: "1. Conexión Física", text: "En el instante en que conectas la batería de 12V, el chip de energía (PMIC) se despierta y se revisa a sí mismo (Auto-test) antes de dar energía a nadie más." },
+            t1: { title: "2. Energía Estable", text: "El PMIC confirma que tiene voltajes estables (1.1V y 3.3V). Solo entonces suelta el freno (Reset) para dejar arrancar al cerebro." },
+            t2: { title: "3. Despertar MCU", text: "El microcontrolador despierta y acelera su reloj interno hasta 400MHz para empezar a procesar datos." },
+            t3: { title: "4. Configuración Crítica", text: "Ventana de 256ms. El cerebro y el chip de energía deben ponerse de acuerdo en las reglas de seguridad. Si fallan aquí, todo se apaga." },
+            t5: { title: "5. Modo Run", text: "El sistema está operativo. Lee celdas, calcula algoritmos y vigila la seguridad continuamente." },
+
+            // Watchdog
+            pmic: { title: "El Juez (PMIC)", text: "Este chip no confía en nadie. Genera un número aleatorio (Semilla) y espera una respuesta matemática perfecta." },
+            mcu: { title: "El Cerebro (MCU)", text: "Recibe el número aleatorio, aplica una fórmula secreta y devuelve el resultado (Llave) para demostrar que funciona bien." },
+            seed_arrow: { title: "Paso 1: El Reto", text: "El PMIC envía un número aleatorio (ej. 55) al Microcontrolador." },
+            key_arrow: { title: "Paso 2: La Respuesta", text: "El Microcontrolador calcula y devuelve la respuesta (ej. 102). Debe hacerlo dentro de una ventana de tiempo exacta." },
+            decision: { title: "La Decisión", text: "¿La respuesta es correcta Y llegó a tiempo? Si SÍ: Todo sigue igual. Si NO: El Juez reinicia el sistema por seguridad." }
+        };
+
+        // --- LÓGICA DE ANIMACIÓN ---
+        let currentTab = 'tab1';
+        let isPlaying = false;
+        let intervalRef = null;
+        let seqIndex = 0;
+
+        // Secuencias de animación (IDs de los elementos HTML)
+        const sequences = {
+            tab1: ['app', 'service', 'driver', 'hw'],
+            tab2: ['t0', 't1', 't2', 't3', 't5'],
+            tab3: ['pmic', 'seed_arrow', 'mcu', 'key_arrow', 'decision'] // Ping Pong visual
+        };
+
+        function setTab(tabId, navEl) {
+            stopAnimation();
+            currentTab = tabId;
+
+            // UI Tabs
+            document.querySelectorAll('.scheme-container').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+
+            // UI Nav
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            navEl.classList.add('active');
+
+            // Reset Panel
+            document.getElementById('infoTitle').innerText = "Selecciona un elemento";
+            document.getElementById('infoDesc').innerText = "Haz clic en los bloques para ver detalles.";
+        }
+
+        function showInfo(key) {
+            const data = infoDB[key];
+            if(data) {
+                document.getElementById('infoTitle').innerText = data.title;
+                document.getElementById('infoDesc').innerText = data.text;
+                
+                // Highlight manual click (optional simple effect)
+            }
+        }
+
+        function togglePlay() {
+            if(isPlaying) {
+                stopAnimation();
+            } else {
+                startAnimation();
+            }
+        }
+
+        function startAnimation() {
+            isPlaying = true;
+            seqIndex = 0;
+            const btn = document.getElementById('playBtn');
+            btn.innerHTML = '<i class="fas fa-stop"></i> DETENER';
+            btn.classList.add('active');
+
+            // Ejecutar inmediatamente el primero
+            playStep();
+            intervalRef = setInterval(playStep, 2000); // 2 segundos por paso
+        }
+
+        function stopAnimation() {
+            isPlaying = false;
+            clearInterval(intervalRef);
+            clearHighlights();
+            
+            const btn = document.getElementById('playBtn');
+            btn.innerHTML = '<i class="fas fa-play"></i> VER FLUJO';
+            btn.classList.remove('active');
+        }
+
+        function playStep() {
+            const seq = sequences[currentTab];
+            clearHighlights();
+
+            if(seqIndex >= seq.length) {
+                seqIndex = 0; // Loop
+            }
+
+            const key = seq[seqIndex];
+            const el = document.querySelector(`[data-key="${key}"]`);
+            
+            if(el) {
+                el.classList.add('highlighted');
+                showInfo(key); // Sincronizar texto
+            }
+
+            seqIndex++;
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.highlighted').forEach(el => el.classList.remove('highlighted'));
+        }
+    </script>
+</body>
+</html>
